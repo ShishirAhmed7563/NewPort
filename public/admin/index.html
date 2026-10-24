@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Portfolio admin</title>
+<style>
+:root{--bg:#f2f5f8;--card:#fff;--ink:#14202b;--mute:#5d6b78;--line:#d6dee6;--acc:#1f5fbf;--on:#fff;--bad:#b3261e;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root{--bg:#10171e;--card:#18222c;--ink:#e8eef4;--mute:#92a1b0;--line:#2b3a48;--acc:#6aa5ff;--on:#08121c;--bad:#ff8a80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,textarea{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.pri{background:var(--acc);color:var(--on);border-color:var(--acc);font-weight:600}.bad{color:var(--bad)}.mute{color:var(--mute)}
+input[type=text],input[type=password],textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+#login{min-height:100vh;display:grid;place-items:center}#login form{width:min(340px,90vw);display:grid;gap:12px}
+#app{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+aside{border-right:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+#nav{display:grid;gap:2px;flex:1;align-content:start}#nav button{text-align:left;border-color:transparent;background:none}
+#nav .on{background:var(--card);border-color:var(--line);font-weight:600;color:var(--acc)}
+main{padding:0 28px 60px;max-width:820px}
+header{position:sticky;top:0;background:var(--bg);padding:14px 0;display:flex;justify-content:flex-end;align-items:center;gap:12px;z-index:2}
+.f{margin:0 0 14px}.f label{display:block;font-weight:600;margin-bottom:4px;text-transform:capitalize}
+.f input[type=file]{margin-top:6px;font-size:13px}.th{display:block;max-height:90px;margin-top:6px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:14px}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:6px}
+@media(max-width:700px){#app{grid-template-columns:1fr}aside{position:static;height:auto;border:0;border-bottom:1px solid var(--line)}#nav{display:flex;flex-wrap:wrap}main{padding:0 14px 60px}}
+</style></head><body>
+<div id="login"><form onsubmit="login(event)"><h1 style="margin:0">Portfolio admin</h1>
+<input id="pw" type="password" placeholder="Admin password" autocomplete="current-password" required autofocus>
+<button class="pri">Sign in</button><div id="err" class="bad"></div></form></div>
+<div id="app" hidden><aside><nav id="nav"></nav><button onclick="sessionStorage.clear();location.reload()">Sign out</button></aside>
+<main><header><span id="msg" class="mute"></span><button id="save" class="pri">Save changes</button></header><div id="main"></div></main></div>
+<script>
+const SITE='https://shishirahmed7563.github.io/Portfolio/',T='text',A='area',I='image';
+const SCHEMA={
+ hero:{label:'Hero',fields:{name:T,roles:T,image:I}},
+ about:{label:'About',fields:{title:T,bio:A,image:I,city:T,interests:T,study:T,degree:T,website:T,mail:T,phone:T,facebook:T}},
+ skills:{label:'Skills',list:{name:T,note:T,percent:T}},
+ services:{label:'Services',list:{icon:I,title:T,text:A}},
+ portfolio:{label:'Portfolio',list:{title:T,category:T,image:I,link:T}},
+ testimonials:{label:'Testimonials',list:{quote:A,author:T}},
+ counters:{label:'Counters',list:{value:T,label:T}},
+ news:{label:'News',list:{date:T,category:T,title:T,excerpt:A,body:A,image:I}},
+ contact:{label:'Contact details',fields:{address:T,email:T,phone:T,website:T}},
+ social:{label:'Social links',list:{name:T,url:T}},
+ footer:{label:'Footer',fields:{text:T}},
+ messages:{label:'Messages'}};
+let token=sessionStorage.t,data={},cur='hero';
+const $=s=>document.querySelector(s);
+const h=(t,p={},...k)=>{const e=Object.assign(document.createElement(t),p);k.flat().forEach(c=>e.append(c));return e};
+const api=async(p,o={})=>{const r=await fetch(p,{...o,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:o.body&&JSON.stringify(o.body)});
+ const j=await r.json();if(!r.ok)throw new Error(j.error||'Something went wrong');return j};
+const flash=t=>{$('#msg').textContent=t;setTimeout(()=>$('#msg').textContent='',3000)};
+async function login(e){e.preventDefault();try{const j=await api('/api/login',{method:'POST',body:{password:$('#pw').value}});token=sessionStorage.t=j.token;start()}catch(x){$('#err').textContent=x.message}}
+async function start(){try{data=await api('/api/content');$('#login').hidden=true;$('#app').hidden=false;nav();view()}catch(x){sessionStorage.clear();$('#login').hidden=false}}
+function nav(){$('#nav').replaceChildren(...Object.entries(SCHEMA).map(([k,s])=>h('button',{textContent:s.label,className:k===cur?'on':'',onclick:()=>{cur=k;nav();view()}})))}
+function field(o,k,type){
+ const inp=type===A?h('textarea',{rows:4}):h('input',{type:'text'});inp.value=o[k]||'';inp.oninput=()=>o[k]=inp.value;
+ const kids=[h('label',{textContent:k}),inp];
+ if(type===I){const img=h('img',{className:'th',alt:''});
+  const show=()=>{const v=inp.value;img.hidden=!v;img.src=!v?'':v.startsWith('/uploads')?location.origin+v:/^https?:/.test(v)?v:SITE+v};show();inp.addEventListener('input',show);
+  const f=h('input',{type:'file',accept:'image/*',onchange:async()=>{if(!f.files[0])return;
+   const d=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f.files[0])});
+   try{const j=await api('/api/upload',{method:'POST',body:{data:d}});inp.value=o[k]=j.url;show();flash('Image uploaded. Save changes to publish.')}catch(x){flash(x.message)}}});
+  kids.push(f,img)}
+ return h('div',{className:'f'},kids)}
+async function view(){
+ const s=SCHEMA[cur],m=$('#main');m.replaceChildren(h('h2',{textContent:s.label}));
+ if(cur==='messages')return inbox(m);
+ if(s.fields){data[cur]??={};Object.entries(s.fields).forEach(([k,t])=>m.append(field(data[cur],k,t)));return}
+ const arr=data[cur]??=[],box=h('div');
+ const mv=(i,d)=>{const j=i+d;if(j<0||j>=arr.length)return;[arr[i],arr[j]]=[arr[j],arr[i]];draw()};
+ const draw=()=>box.replaceChildren(...arr.map((it,i)=>h('div',{className:'card'},
+  h('div',{className:'bar'},h('b',{textContent:'Item '+(i+1)}),h('span',{},h('button',{textContent:'Up',onclick:()=>mv(i,-1)}),' ',h('button',{textContent:'Down',onclick:()=>mv(i,1)}),' ',
+   h('button',{textContent:'Remove',className:'bad',onclick:()=>{if(confirm('Remove this item?')){arr.splice(i,1);draw()}}}))),
+  Object.entries(s.list).map(([k,t])=>field(it,k,t)))));
+ m.append(box,h('button',{textContent:'Add item',onclick:()=>{arr.push({});draw()}}));draw()}
+async function inbox(m){
+ try{const list=await api('/api/messages');
+  if(!list.length)m.append(h('p',{className:'mute',textContent:'No messages yet. Messages sent from your contact form appear here.'}));
+  list.forEach(x=>m.append(h('div',{className:'card'},h('div',{className:'bar'},h('b',{textContent:new Date(x.at).toLocaleString()}),
+   h('button',{textContent:'Delete',className:'bad',onclick:async()=>{await api('/api/messages/'+x.id,{method:'DELETE'});view()}})),
+   Object.entries(x.fields).map(([k,v])=>h('p',{},h('b',{textContent:k+': '}),h('span',{textContent:v})))))))
+ }catch(x){m.append(h('p',{className:'bad',textContent:x.message}))}}
+$('#save').onclick=async()=>{try{await api('/api/content',{method:'PUT',body:data});flash('Saved. Your site now shows these changes.')}catch(x){flash(x.message)}};
+if(token)start();
+</script></body></html>
